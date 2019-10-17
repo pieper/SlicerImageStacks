@@ -86,30 +86,35 @@ class ImageStacksWidget(ScriptedLoadableModuleWidget):
     #
     # output volume selector
     #
-    self.outputSelector = slicer.qMRMLSubjectHierarchyComboBox()
+    #self.outputSelector = slicer.qMRMLSubjectHierarchyComboBox()
+    self.outputSelector = slicer.qMRMLNodeComboBox()
 
-    # self.outputSelector.nodeTypes = ["vtkMRMLScalarVolumeNode"] ; TODO: make nodeTypes property for SH box
-    self.outputSelector.setNodeTypes(["vtkMRMLScalarVolumeNode"])
+    self.outputSelector.nodeTypes = ["vtkMRMLScalarVolumeNode",]
+    #self.outputSelector.setNodeTypes(["vtkMRMLScalarVolumeNode",]) ; TODO: make nodeTypes property for SH box
 
 
-    """ TODO: which are needed for SH?
-    self.outputSelector.selectNodeUponCreation = True
-    self.outputSelector.addEnabled = True
-    self.outputSelector.removeEnabled = True
-    self.outputSelector.noneEnabled = True
+    """
+    TODO: which are supported and needed for SubjectHierarchy combo box.
+    TODO: can we delete/rename/create as with SH
+    self.outputSelector.defaultText = "Create new volume." ; # TODO any way to reset value?
+    """
+    self.outputSelector.showChildNodeTypes = False
     self.outputSelector.showHidden = False
     self.outputSelector.showChildNodeTypes = False
-    """
+    self.outputSelector.selectNodeUponCreation = False
+    self.outputSelector.noneEnabled = True
+    self.outputSelector.removeEnabled = True
+    self.outputSelector.renameEnabled = True
+    self.outputSelector.addEnabled = True
     self.outputSelector.setMRMLScene( slicer.mrmlScene )
-    self.outputSelector.setToolTip( "Pick the output volume to populate." )
-    self.outputSelector.defaultText = "Create new volume." ; # TODO any way to reset value?
+    self.outputSelector.setToolTip( "Pick the output volume to populate or None to autogenerate." )
     outputFormLayout.addRow("Output Volume: ", self.outputSelector)
 
     self.spacing = ctk.ctkCoordinatesWidget()
     self.spacing.coordinates = "1,1,1"
     self.spacing.toolTip = "Set the colunm, row, slice spacing in mm"
     outputFormLayout.addRow("Spacing: ", self.spacing)
-    
+
 
     self.loadButton = qt.QPushButton("Load files")
     outputFormLayout.addRow(self.loadButton)
@@ -170,7 +175,7 @@ class ImageStacksWidget(ScriptedLoadableModuleWidget):
     pass
 
   def addByBrowsing(self):
-    filePaths = qt.QFileDialog().getOpenFileNames() 
+    filePaths = qt.QFileDialog().getOpenFileNames()
     for filePath in filePaths:
       item = qt.QStandardItem()
       item.setText(filePath)
@@ -178,9 +183,12 @@ class ImageStacksWidget(ScriptedLoadableModuleWidget):
 
   def currentNode(self):
     # TODO: this should be moved to qMRMLSubjectHierarchyComboBox::currentNode()
-    shNode = slicer.vtkMRMLSubjectHierarchyNode.GetSubjectHierarchyNode(slicer.mrmlScene)
-    selectedItem = self.outputSelector.currentItem()
-    outputNode = shNode.GetItemDataNode(selectedItem)
+    if self.outputSelector.className() == "qMRMLSubjectHierarchyComboBox":
+      shNode = slicer.vtkMRMLSubjectHierarchyNode.GetSubjectHierarchyNode(slicer.mrmlScene)
+      selectedItem = self.outputSelector.currentItem()
+      outputNode = shNode.GetItemDataNode(selectedItem)
+    else:
+      return self.outputSelector.currentNode()
 
   def validateInput(self):
     self.indexRange.enabled = len(self.archetypePathEdit.currentPath)
@@ -236,8 +244,8 @@ class ImageStacksLogic(ScriptedLoadableModuleLogic):
 
   def loadByArchetype(self, archetypePath, archetypeFormat, indexRange, outputNode):
 
-    dirName = os.path.dirname(archetypePath) 
-    pathFormat = os.path.join(dirName, archetypeFormat) 
+    dirName = os.path.dirname(archetypePath)
+    pathFormat = os.path.join(dirName, archetypeFormat)
     paths = [ pathFormat % i for i in range(*indexRange) ]
 
     self.loadByPaths(paths, outputNode)
@@ -257,7 +265,7 @@ class ImageStacksLogic(ScriptedLoadableModuleLogic):
       if volumeArray is None:
         shape = (len(paths), *sliceArray.shape)
         volumeArray = numpy.zeros(shape, dtype=sliceArray.dtype)
-      volumeArray[sliceIndex] = sliceArray 
+      volumeArray[sliceIndex] = sliceArray
       sliceIndex += 1
 
     if not outputNode:
