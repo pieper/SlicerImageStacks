@@ -250,7 +250,10 @@ class ImageStacksLogic(ScriptedLoadableModuleLogic):
       reader = sitk.ImageFileReader()
       reader.SetFileName(path)
       image = reader.Execute()
-      sliceArray = sitk.GetArrayFromImage(image)[:,:,0]
+      sliceArray = sitk.GetArrayFromImage(image)
+      if len(sliceArray.shape) == 3:
+        sliceArray = sitk.GetArrayFromImage(image)[:,:,0]
+
       if volumeArray is None:
         shape = (len(paths), *sliceArray.shape)
         volumeArray = numpy.zeros(shape, dtype=sliceArray.dtype)
