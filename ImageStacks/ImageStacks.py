@@ -74,6 +74,9 @@ class ImageStacksWidget(ScriptedLoadableModuleWidget):
     buttonLayout.addWidget(self.clearFilesButton)
     filesFormLayout.addRow(buttonLayout)
 
+    self.propertiesLabel = qt.QLabel()
+    filesFormLayout.addRow(self.propertiesLabel)
+
     #
     # output area
     #
@@ -86,18 +89,10 @@ class ImageStacksWidget(ScriptedLoadableModuleWidget):
     #
     # output volume selector
     #
-    #self.outputSelector = slicer.qMRMLSubjectHierarchyComboBox()
     self.outputSelector = slicer.qMRMLNodeComboBox()
 
     self.outputSelector.nodeTypes = ["vtkMRMLScalarVolumeNode",]
-    #self.outputSelector.setNodeTypes(["vtkMRMLScalarVolumeNode",]) ; TODO: make nodeTypes property for SH box
 
-
-    """
-    TODO: which are supported and needed for SubjectHierarchy combo box.
-    TODO: can we delete/rename/create as with SH
-    self.outputSelector.defaultText = "Create new volume." ; # TODO any way to reset value?
-    """
     self.outputSelector.showChildNodeTypes = False
     self.outputSelector.showHidden = False
     self.outputSelector.showChildNodeTypes = False
@@ -153,7 +148,7 @@ class ImageStacksWidget(ScriptedLoadableModuleWidget):
 
     # connections
     self.addByBrowsingButton.connect('clicked()', self.addByBrowsing)
-    self.clearFilesButton.connect('clicked()', self.fileTable.model().clear)
+    self.clearFilesButton.connect('clicked()', self.onClearFiles)
     self.archetypePathEdit.connect('currentPathChanged(QString)', self.validateInput)
     self.archetypePathEdit.connect('currentPathChanged(QString)', self.updateGUIFromArchetype)
     self.archetypeFormat.connect('textChanged(QString)', self.validateInput)
@@ -174,12 +169,25 @@ class ImageStacksWidget(ScriptedLoadableModuleWidget):
   def cleanup(self):
     pass
 
+  def updateFileProperties(self, properties):
+    text = ""
+    for prop in properties:
+      text += f"{prop}: {properties[prop]}\n"
+    text = text[:-1]
+    self.propertiesLabel.text = text
+
+  def onClearFiles(self):
+    self.fileTable.model().clear()
+    self.updateFileProperties({})
+
   def addByBrowsing(self):
     filePaths = qt.QFileDialog().getOpenFileNames()
     for filePath in filePaths:
       item = qt.QStandardItem()
       item.setText(filePath)
       self.fileModel.setItem(self.fileModel.rowCount(), 0, item)
+    properties = self.logic.calculateProperties(filePaths)
+    self.updateFileProperties(properties)
 
   def currentNode(self):
     # TODO: this should be moved to qMRMLSubjectHierarchyComboBox::currentNode()
@@ -240,6 +248,25 @@ class ImageStacksLogic(ScriptedLoadableModuleLogic):
     properties['fileName'] = os.path.basename(archetypePath)
     properties['minimum'] = 0
     properties['maximum'] = len(os.listdir(properties['directoryPath']))
+    return(properties)
+
+  def calculateProperties(self, filePaths):
+    properties = {}
+    reader = sitk.ImageFileReader()
+    reader.SetFileName(filePaths[0])
+    image = reader.Execute()
+    sliceArray = sitk.GetArrayFromImage(image)
+    dimensions = ((*sliceArray.shape[:2]), len(filePaths))
+    properties['dimensions'] = f"{dimensions}"
+    properties['data type'] = f"{sliceArray.dtype}"
+    itemsize = numpy.dtype(sliceArray.dtype).itemsize
+    byteSize = (itemsize * dimensions[0] * dimensions[1] * dimensions[2])
+    units = "bytes"
+    for unit in ['kilobytes', 'megabytes', 'gigabytes', 'terabytes']:
+      if byteSize > 1024:
+        byteSize /= 1024.
+        units = unit
+    properties['full volume size'] = f"{byteSize:.3f} {units}"
     return(properties)
 
   def loadByArchetype(self, archetypePath, archetypeFormat, indexRange, outputNode):
@@ -318,9 +345,6 @@ class ImageStacksTest(ScriptedLoadableModuleTest):
     paths = [ pathFormat % (directoryPath, i) for i in range(start,end+1) ]
     collection = []
 
-    slicer.modules.paths = paths
-    slicer.modules.collection = collection
-
     import SimpleITK as sitk
     def readingTarget(paths=paths):
         for path in paths:
@@ -336,8 +360,5 @@ class ImageStacksTest(ScriptedLoadableModuleTest):
 
     qt.QTimer.singleShot(5000, lambda : print(len(collection)))
     qt.QTimer.singleShot(25000, thread.join)
-
-    print(collection)
-    slicer.modules.collection = collection
 
     self.delayDisplay('Test passed!')
