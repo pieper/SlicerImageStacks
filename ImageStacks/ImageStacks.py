@@ -97,7 +97,7 @@ class ImageStacksWidget(ScriptedLoadableModuleWidget):
     self.outputSelector.showChildNodeTypes = False
     self.outputSelector.showHidden = False
     self.outputSelector.showChildNodeTypes = False
-    self.outputSelector.selectNodeUponCreation = False
+    self.outputSelector.selectNodeUponCreation = True
     self.outputSelector.noneEnabled = True
     self.outputSelector.removeEnabled = True
     self.outputSelector.renameEnabled = True
