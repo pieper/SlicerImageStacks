@@ -1,5 +1,6 @@
 import os
 import unittest
+import math
 import numpy
 import vtk, qt, ctk, slicer
 import SimpleITK as sitk
@@ -107,9 +108,12 @@ class ImageStacksWidget(ScriptedLoadableModuleWidget):
 
     self.spacing = ctk.ctkCoordinatesWidget()
     self.spacing.coordinates = "1,1,1"
-    self.spacing.toolTip = "Set the colunm, row, slice spacing in mm"
+    self.spacing.toolTip = "Set the colunm, row, slice spacing in mm; original spacing not including downsample"
     outputFormLayout.addRow("Spacing: ", self.spacing)
 
+    self.downsample = qt.QCheckBox()
+    self.downsample.toolTip = "Reduces data size by half in each dimension by skipping every other pixel and slice (uses about 1/8 memory)"
+    outputFormLayout.addRow("Downsample: ", self.downsample)
 
     self.loadButton = qt.QPushButton("Load files")
     outputFormLayout.addRow(self.loadButton)
@@ -226,6 +230,7 @@ class ImageStacksWidget(ScriptedLoadableModuleWidget):
     properties = {}
     spacingString = self.spacing.coordinates
     properties['spacing'] = [float(element) for element in spacingString.split(",")]
+    properties['downsample'] = self.downsample.checked
     self.logic.loadByPaths(paths, self.currentNode(), properties)
 
 #
@@ -250,6 +255,14 @@ class ImageStacksLogic(ScriptedLoadableModuleLogic):
     properties['maximum'] = len(os.listdir(properties['directoryPath']))
     return(properties)
 
+  def humanizeByteCount(self,byteCount):
+    units = "bytes"
+    for unit in ['kilobytes', 'megabytes', 'gigabytes', 'terabytes']:
+      if byteCount > 1024:
+        byteCount /= 1024.
+        units = unit
+    return(byteCount, units)
+
   def calculateProperties(self, filePaths):
     properties = {}
     reader = sitk.ImageFileReader()
@@ -260,13 +273,11 @@ class ImageStacksLogic(ScriptedLoadableModuleLogic):
     properties['dimensions'] = f"{dimensions}"
     properties['data type'] = f"{sliceArray.dtype}"
     itemsize = numpy.dtype(sliceArray.dtype).itemsize
-    byteSize = (itemsize * dimensions[0] * dimensions[1] * dimensions[2])
-    units = "bytes"
-    for unit in ['kilobytes', 'megabytes', 'gigabytes', 'terabytes']:
-      if byteSize > 1024:
-        byteSize /= 1024.
-        units = unit
-    properties['full volume size'] = f"{byteSize:.3f} {units}"
+    volumeSize = (itemsize * dimensions[0] * dimensions[1] * dimensions[2])
+    byteCount, units = self.humanizeByteCount(volumeSize)
+    properties['full volume size'] = f"{byteCount:.3f} {units}"
+    byteCount, units = self.humanizeByteCount(volumeSize/8.)
+    properties['downsampled volume size'] = f"{byteCount:.3f} {units}"
     return(properties)
 
   def loadByArchetype(self, archetypePath, archetypeFormat, indexRange, outputNode):
@@ -279,6 +290,15 @@ class ImageStacksLogic(ScriptedLoadableModuleLogic):
 
   def loadByPaths(self, paths, outputNode, properties={}):
 
+    spacing = (1,1,1)
+    if 'spacing' in properties:
+      spacing = properties['spacing']
+
+    downsample = 'downsample' in properties and properties['downsample']
+    if downsample:
+      paths = paths[::2]
+      spacing = [element * 2. for element in spacing]
+
     volumeArray = None
     sliceIndex = 0
     for path in paths:
@@ -290,8 +310,13 @@ class ImageStacksLogic(ScriptedLoadableModuleLogic):
         sliceArray = sitk.GetArrayFromImage(image)[:,:,0]
 
       if volumeArray is None:
-        shape = (len(paths), *sliceArray.shape)
+        sliceShape = sliceArray.shape
+        if downsample:
+          sliceShape = [math.floor(element/2) for element in sliceShape]
+        shape = (len(paths), *sliceShape)
         volumeArray = numpy.zeros(shape, dtype=sliceArray.dtype)
+      if downsample:
+        sliceArray = sliceArray[::2,::2]
       volumeArray[sliceIndex] = sliceArray
       sliceIndex += 1
 
@@ -299,8 +324,7 @@ class ImageStacksLogic(ScriptedLoadableModuleLogic):
       outputNode = slicer.vtkMRMLScalarVolumeNode()
       slicer.mrmlScene.AddNode(outputNode)
 
-    if 'spacing' in properties:
-      outputNode.SetSpacing(*properties['spacing'])
+    outputNode.SetSpacing(*spacing)
 
     slicer.util.updateVolumeFromArray(outputNode, volumeArray)
     slicer.util.setSliceViewerLayers(background=outputNode, fit=True)
