@@ -107,6 +107,7 @@ class ImageStacksWidget(ScriptedLoadableModuleWidget):
     outputFormLayout.addRow("Output Volume: ", self.outputSelector)
 
     self.spacing = ctk.ctkCoordinatesWidget()
+    self.spacing.decimals = 8
     self.spacing.coordinates = "1,1,1"
     self.spacing.toolTip = "Set the colunm, row, slice spacing in mm; original spacing not including downsample"
     outputFormLayout.addRow("Spacing: ", self.spacing)
