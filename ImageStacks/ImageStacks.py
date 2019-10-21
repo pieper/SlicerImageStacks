@@ -335,7 +335,16 @@ class ImageStacksLogic(ScriptedLoadableModuleLogic):
       outputNode = slicer.vtkMRMLScalarVolumeNode()
       slicer.mrmlScene.AddNode(outputNode)
 
+    print(spacing)
+    ijkToRAS = vtk.vtkMatrix4x4()
+    ijkToRAS.Identity()
+    for index in range(3):
+      if (spacing[index] < 0):
+        spacing[index] = -1. * spacing[index]
+        ijkToRAS.SetElement(index, index, -1.)
     outputNode.SetSpacing(*spacing)
+    outputNode.SetIJKToRASMatrix(ijkToRAS)
+    print(spacing)
 
     slicer.util.updateVolumeFromArray(outputNode, volumeArray)
     slicer.util.setSliceViewerLayers(background=outputNode, fit=True)
