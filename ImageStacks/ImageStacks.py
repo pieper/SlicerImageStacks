@@ -290,6 +290,16 @@ class ImageStacksLogic(ScriptedLoadableModuleLogic):
     self.loadByPaths(paths, outputNode)
 
   def loadByPaths(self, paths, outputNode, properties={}):
+    """
+    Load the files in paths to outputNode with optional properties.
+    TODO: currently downsample is done with nearest neighbor filtering
+    (i.e. skip slices and take every other row/column).
+    It would be better to do a high order spline or other
+    method, but there is no convenient streaming option for these.
+    One option will be do to a box filter by averaging adjacent
+    slices/row/columns which should be easy in numpy
+    and give good results for a pixel aligned 50% scale operation.
+    """
 
     spacing = (1,1,1)
     if 'spacing' in properties:
