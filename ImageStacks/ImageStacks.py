@@ -341,8 +341,8 @@ class ImageStacksLogic(ScriptedLoadableModuleLogic):
       if (spacing[index] < 0):
         spacing[index] = -1. * spacing[index]
         ijkToRAS.SetElement(index, index, -1.)
-    outputNode.SetSpacing(*spacing)
     outputNode.SetIJKToRASMatrix(ijkToRAS)
+    outputNode.SetSpacing(*spacing)
 
     slicer.util.updateVolumeFromArray(outputNode, volumeArray)
     slicer.util.setSliceViewerLayers(background=outputNode, fit=True)
