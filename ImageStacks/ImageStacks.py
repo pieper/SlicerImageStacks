@@ -323,7 +323,7 @@ class ImageStacksLogic(ScriptedLoadableModuleLogic):
       if volumeArray is None:
         sliceShape = sliceArray.shape
         if downsample:
-          sliceShape = [math.floor(element/2) for element in sliceShape]
+          sliceShape = [math.ceil(element/2) for element in sliceShape]
         shape = (len(paths), *sliceShape)
         volumeArray = numpy.zeros(shape, dtype=sliceArray.dtype)
       if downsample:
