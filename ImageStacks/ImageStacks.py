@@ -203,6 +203,13 @@ class ImageStacksWidget(ScriptedLoadableModuleWidget):
     else:
       return self.outputSelector.currentNode()
 
+  def setCurrentNode(self, node):
+    if self.outputSelector.className() == "qMRMLSubjectHierarchyComboBox":
+      # not sure how to select in the subject hierarychy
+      pass
+    else:
+      self.outputSelector.setCurrentNode(node)
+
   def validateInput(self):
     self.indexRange.enabled = len(self.archetypePathEdit.currentPath)
     self.generateNamesButton.enabled = len(self.archetypePathEdit.currentPath) and len(self.archetypeFormat.text)
@@ -232,7 +239,8 @@ class ImageStacksWidget(ScriptedLoadableModuleWidget):
     spacingString = self.spacing.coordinates
     properties['spacing'] = [float(element) for element in spacingString.split(",")]
     properties['downsample'] = self.downsample.checked
-    self.logic.loadByPaths(paths, self.currentNode(), properties)
+    outputNode = self.logic.loadByPaths(paths, self.currentNode(), properties)
+    self.setCurrentNode(outputNode)
 
 #
 # ImageStacksLogic
@@ -334,6 +342,10 @@ class ImageStacksLogic(ScriptedLoadableModuleLogic):
     if not outputNode:
       outputNode = slicer.vtkMRMLScalarVolumeNode()
       slicer.mrmlScene.AddNode(outputNode)
+      path = paths[0]
+      fileName = os.path.basename(path)
+      name = os.path.splitext(fileName)[0]
+      outputNode.SetName(name)
 
     ijkToRAS = vtk.vtkMatrix4x4()
     ijkToRAS.Identity()
@@ -346,6 +358,7 @@ class ImageStacksLogic(ScriptedLoadableModuleLogic):
 
     slicer.util.updateVolumeFromArray(outputNode, volumeArray)
     slicer.util.setSliceViewerLayers(background=outputNode, fit=True)
+    return outputNode
 
 
 class ImageStacksTest(ScriptedLoadableModuleTest):
