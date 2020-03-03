@@ -116,6 +116,12 @@ class ImageStacksWidget(ScriptedLoadableModuleWidget):
     self.downsample.toolTip = "Reduces data size by half in each dimension by skipping every other pixel and slice (uses about 1/8 memory)"
     outputFormLayout.addRow("Downsample: ", self.downsample)
 
+    self.sliceSkip = ctk.ctkDoubleSpinBox()
+    self.sliceSkip.decimals = 0
+    self.sliceSkip.minimum = 0
+    self.sliceSkip.toolTip = "Skips the selected number of slices (use, for example, on long thin samples with more slices than in-plane resolution)"
+    outputFormLayout.addRow("Slice skip: ", self.sliceSkip)
+
     self.loadButton = qt.QPushButton("Load files")
     outputFormLayout.addRow(self.loadButton)
 
@@ -239,6 +245,7 @@ class ImageStacksWidget(ScriptedLoadableModuleWidget):
     spacingString = self.spacing.coordinates
     properties['spacing'] = [float(element) for element in spacingString.split(",")]
     properties['downsample'] = self.downsample.checked
+    properties['sliceSkip'] = self.sliceSkip.value
     outputNode = self.logic.loadByPaths(paths, self.currentNode(), properties)
     self.setCurrentNode(outputNode)
 
@@ -312,6 +319,12 @@ class ImageStacksLogic(ScriptedLoadableModuleLogic):
     spacing = (1,1,1)
     if 'spacing' in properties:
       spacing = properties['spacing']
+
+    sliceSkip = 0
+    if 'sliceSkip' in properties:
+      sliceSkip = int(properties['sliceSkip'])
+    spacing[2] *= 1+sliceSkip
+    paths = paths[::1+sliceSkip]
 
     downsample = 'downsample' in properties and properties['downsample']
     if downsample:
