@@ -1,6 +1,15 @@
 # SlicerImageStacks
-Scripted utility to load image stacks (e.g. confocal microscopy) more easily
+Scripted utility to load image stacks (e.g. confocal microscopy) more easily.
 
+## Basic usage
+* use file browser to select list of images.
+* enter spacing of original image data
+* downsample uses 1/2 the pixels in each dimension (so volume is 1/8 size)
+* skipping slices reduces the z-resolution
+
+![ImageStacks screenshot](./ImageStacks.png)
+
+## Installation
 
 For testing, paste this in the python console of a recent slicer nightly:
 
