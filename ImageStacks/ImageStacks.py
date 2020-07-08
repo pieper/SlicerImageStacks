@@ -119,6 +119,10 @@ class ImageStacksWidget(ScriptedLoadableModuleWidget):
     self.downsample.toolTip = "Reduces data size by half in each dimension by skipping every other pixel and slice (uses about 1/8 memory)"
     outputFormLayout.addRow("Downsample: ", self.downsample)
 
+    self.reverse = qt.QCheckBox()
+    self.reverse.toolTip = "Read the images in reverse order"
+    outputFormLayout.addRow("Reverse: ", self.reverse)
+
     self.sliceSkip = ctk.ctkDoubleSpinBox()
     self.sliceSkip.decimals = 0
     self.sliceSkip.minimum = 0
@@ -248,6 +252,7 @@ class ImageStacksWidget(ScriptedLoadableModuleWidget):
     spacingString = self.spacing.coordinates
     properties['spacing'] = [float(element) for element in spacingString.split(",")]
     properties['downsample'] = self.downsample.checked
+    properties['reverse'] = self.reverse.checked
     properties['sliceSkip'] = self.sliceSkip.value
     outputNode = self.logic.loadByPaths(paths, self.currentNode(), properties)
     self.setCurrentNode(outputNode)
@@ -328,6 +333,10 @@ class ImageStacksLogic(ScriptedLoadableModuleLogic):
       sliceSkip = int(properties['sliceSkip'])
     spacing[2] *= 1+sliceSkip
     paths = paths[::1+sliceSkip]
+
+    reverse = 'reverse' in properties and properties['reverse']
+    if reverse:
+      paths.reverse()
 
     downsample = 'downsample' in properties and properties['downsample']
     if downsample:
