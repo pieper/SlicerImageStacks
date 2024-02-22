@@ -1,3 +1,5 @@
+See the SlicerMorph project for the updated version of this: https://github.com/SlicerMorph/SlicerMorph/tree/master/Docs/ImageStacks
+
 # SlicerImageStacks
 Scripted utility to load image stacks (e.g. confocal microscopy) more easily.
 
